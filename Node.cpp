@@ -128,9 +128,9 @@ void Node::calculateBetas(const string &filename, int k, int it, int nbBetas)
             VectorXd z(nbBetas);
             for (size_t x = 2; x < node_data[0].size(); ++x) {
                 double value = node_data[idx-1][x];
-                z(x - 2) = value;
+                z(x - 2) = forceZero(value, 1e-10);
             }
-            
+
             double exp_val = exp((beta_data.transpose() * z).sum());
             sumExp[i] += exp_val;
             sumZqExp.row(i) += z.transpose() * exp_val;

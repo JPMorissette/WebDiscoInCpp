@@ -148,7 +148,7 @@ void writeResultsToCSV(const string& filename, const MatrixXd& matrix) {
 int main() {
     const int nbOfSites = 3;
     const int nbBetas = 7;
-    const int maxIt = 1;
+    const int maxIt = 3;
 
     // Create sites
     vector<Node> sites;
@@ -158,31 +158,31 @@ int main() {
     }
 
     // Calculate times for each site
-    // for (int i = 1; i <= nbOfSites; ++i) {
-    //     string filename = "Data_site_" + to_string(i) + ".csv";
-    //     sites[i-1].calculateTimes(filename, i);
-    // }
+    for (int i = 1; i <= nbOfSites; ++i) {
+        string filename = "Data_site_" + to_string(i) + ".csv";
+        sites[i-1].calculateTimes(filename, i);
+    }
 
     // Read and combine times from all sites
-    // vector<long double> combined_times;
-    // for (int k = 1; k <= nbOfSites; ++k) {
-    //     string filename = "Times_" + to_string(k) + "_output.csv";
-    //     vector<long double> times = readTimesFromFile(filename);
-    //     combined_times.insert(combined_times.end(), times.begin(), times.end());
-    // }
+    vector<long double> combined_times;
+    for (int k = 1; k <= nbOfSites; ++k) {
+        string filename = "Times_" + to_string(k) + "_output.csv";
+        vector<long double> times = readTimesFromFile(filename);
+        combined_times.insert(combined_times.end(), times.begin(), times.end());
+    }
 
-    // // Remove duplicates and sort the times
-    // set<long double> unique_times(combined_times.begin(), combined_times.end());
-    // vector<long double> sorted_times(unique_times.begin(), unique_times.end());
+    // Remove duplicates and sort the times
+    set<long double> unique_times(combined_times.begin(), combined_times.end());
+    vector<long double> sorted_times(unique_times.begin(), unique_times.end());
 
-    // // Write the sorted times to a new CSV file
-    // writeVectorToFile(sorted_times, "Global_times_output.csv");
+    // Write the sorted times to a new CSV file
+    writeVectorToFile(sorted_times, "Global_times_output.csv");
 
     // Calculate params for each site
-    // for (int i = 1; i <= nbOfSites; ++i) {
-    //     string filename = "Data_site_" + to_string(i) + ".csv";
-    //     sites[i-1].calculateParams(filename, i, nbBetas);
-    // }
+    for (int i = 1; i <= nbOfSites; ++i) {
+        string filename = "Data_site_" + to_string(i) + ".csv";
+        sites[i-1].calculateParams(filename, i, nbBetas);
+    }
 
     // Calculate parameters (sumZr, normDi)
     MatrixXd sumZrGlobal = MatrixXd::Zero(0, 0);
@@ -197,15 +197,12 @@ int main() {
         for (int j = 0; j < Dik_data.rows(); ++j) {
             normDikGlobal(j) += (Dik_data.row(j).array() != 0).count();
         }
-        cout << "yuh2" << endl;
         string sumZrh_filename = "sumZrh" + to_string(i) + ".csv";
         MatrixXd temp = readDataFromCSV(sumZrh_filename);
-        cout << "yuh3" << endl;
         if (sumZrGlobal.rows() == 0) {
             sumZrGlobal = MatrixXd::Zero(temp.rows(), temp.cols());
         }
         sumZrGlobal += temp;
-        cout << "yuh4" << endl;
     }
 
     writeResultsToCSV("normDikGlobal.csv", normDikGlobal);
