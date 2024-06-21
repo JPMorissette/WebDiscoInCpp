@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 #include <limits>
-#include <Eigen/Dense>
+#include "C:/Libraries/Eigen/eigen-3.4.0/Eigen/Dense"
 #include <cmath>
 #include <algorithm>
 
@@ -36,11 +36,11 @@ void Node::calculateTimes(const string &filename, int i)
     while (std::getline(infile, line)) {
         if (first_line) {
             first_line = false;
-            continue; // Skip the header
+            continue;
         }
         std::vector<std::string> columns = split(line, ',');
         if (columns.size() < 2) {
-            continue; // Skip lines that don't have enough columns
+            continue;
         }
         std::string time = columns[0];
         std::string status = columns[1];
@@ -93,14 +93,6 @@ void Node::calculateParams(const string &filename, int i, int nbBetas)
         }
     }
 
-    int max_length = 0;
-    for (const auto &row : Dik) {
-        if (row.size() > max_length) {
-            max_length = row.size();
-        }
-    }
-
-
     writeCSV(Dik, "Dik" + std::to_string(i) + ".csv");
     writeCSV(Rik, "Rik" + std::to_string(i) + ".csv");
     writeCSV(sumZrh, "sumZrh" + std::to_string(i) + ".csv");
@@ -128,9 +120,9 @@ void Node::calculateBetas(const string &filename, int k, int it, int nbBetas)
             VectorXd z(nbBetas);
             for (size_t x = 2; x < node_data[0].size(); ++x) {
                 double value = node_data[idx-1][x];
-                z(x - 2) = forceZero(value, 1e-10);
+                z(x - 2) = value;
             }
-
+            
             double exp_val = exp((beta_data.transpose() * z).sum());
             sumExp[i] += exp_val;
             sumZqExp.row(i) += z.transpose() * exp_val;
@@ -270,7 +262,6 @@ void Node::eigenWriteCSV(const VectorXd& vec, const string& filename) {
             cerr << "Unable to open file: " << filename << endl;
         }
     }
-
 
 double Node::forceZero(double value, double threshold) {
     if (std::abs(value) < threshold) {

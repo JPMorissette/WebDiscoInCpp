@@ -1,3 +1,13 @@
+/*
+    Distributed Cox Model in C++
+    License: https://creativecommons.org/licenses/by-nc-sa/4.0/
+    Copyright: GRIIS / Université de Sherbrooke
+
+    TODO: 
+    - Clean Node.cpp (many different read and write functions, could be merged)
+    - Test with big number of data
+*/
+
 #define STATS_ENABLE_EIGEN_WRAPPERS
 
 #include <iostream>
@@ -5,7 +15,6 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include <stats.hpp>
 #include <iomanip>
 #include <set>
 #include "Node.h"
@@ -13,60 +22,7 @@
 using namespace std;
 using namespace Eigen;
 
-vector<long double> readTimesFromFile(const string& filename) {
-    vector<long double> times;
-    ifstream file(filename);
-    string line;
-
-    while (getline(file, line)) {
-        stringstream ss(line);
-        string value;
-        while (getline(ss, value, ',')) {
-            try {
-                times.push_back(stold(value));
-            } catch (const invalid_argument& e) {
-                cerr << "Invalid number in file: " << filename << endl;
-            }
-        }
-    }
-
-    file.close();
-    return times;
-}
-
-vector<vector<double>> readCSV(const string& filename) {
-    ifstream file(filename);
-    vector<vector<double>> data;
-    string line;
-    
-    while (getline(file, line)) {
-        stringstream lineStream(line);
-        vector<double> row;
-        string cell;
-        
-        while (getline(lineStream, cell, ',')) {
-            row.push_back(stod(cell));
-        }
-        
-        data.push_back(row);
-    }
-    
-    return data;
-}
-
-template <typename T>
-void writeVectorToFile(const vector<T>& vec, const string& filename, const string& delimiter = "\n") {
-    ofstream file(filename);
-    file << fixed << setprecision(15);
-    for (size_t i = 0; i < vec.size(); ++i) {
-        file << vec[i];
-        if (i < vec.size() - 1) {
-            file << delimiter;
-        }
-    }
-    file.close();
-}
-
+// Split values in a CSV (used in readDataFromCSV)
 vector<string> split(const string &s, char delimiter) {
     vector<string> tokens;
     string token;
@@ -77,15 +33,28 @@ vector<string> split(const string &s, char delimiter) {
     return tokens;
 }
 
-double forceZero(double value, double threshold = 1e-10) {
-    if (std::abs(value) < threshold) {
-        return 0.0;
-    } else {
-        return value;
+// Read CSV file and store in a vector<vector>>
+vector<vector<double>> readCSVVector(const string& filename) {
+    ifstream file(filename);
+    vector<vector<double>> data;
+    string line;
+
+    while (getline(file, line)) {
+        stringstream lineStream(line);
+        vector<double> row;
+        string cell;
+
+        while (getline(lineStream, cell, ',')) {
+            row.push_back(stod(cell));
+        }
+
+        data.push_back(row);
     }
+
+    return data;
 }
 
-
+// Read data from CSV (no header)
 MatrixXd readDataFromCSV(const string &filename) {
     ifstream file(filename);
     if (!file.is_open()) {
@@ -102,11 +71,18 @@ MatrixXd readDataFromCSV(const string &filename) {
     file.close();
 
     int rows = table.size();
-    int cols = table.empty() ? 0 : table[0].size();
+    int cols = 0;
+    for (const auto& row : table) {
+        if (row.size() > cols) {
+            cols = row.size();
+        }
+    }
+
     MatrixXd m(rows, cols);
+    m.setZero();
 
     for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
+        for (int j = 0; j < table[i].size(); ++j) {
             try {
                 if (table[i][j].empty()) {
                     m(i, j) = 0.0; 
@@ -126,8 +102,10 @@ MatrixXd readDataFromCSV(const string &filename) {
     return m;
 }
 
+// Write data in CSV
 void writeResultsToCSV(const string& filename, const MatrixXd& matrix) {
     ofstream outputFile(filename);
+    outputFile << fixed << setprecision(15);
     if (outputFile.is_open()) {
         for (int i = 0; i < matrix.rows(); ++i) {
             for (int j = 0; j < matrix.cols(); ++j) {
@@ -145,46 +123,66 @@ void writeResultsToCSV(const string& filename, const MatrixXd& matrix) {
     }
 }
 
+// Force to zero values that are smaller then the threshold
+double forceZero(double value, double threshold = 1e-10) {
+    if (std::abs(value) < threshold) {
+        return 0.0;
+    }
+    else {
+        return value;
+    }
+}
+
 int main() {
     const int nbOfSites = 3;
-    const int nbBetas = 7;
-    const int maxIt = 3;
+    const int nbBetas = 3;
+    const int maxIt = 2;
 
-    // Create sites
+    // Create sites (needed for data storage)
     vector<Node> sites;
     for (int i = 1; i <= nbOfSites; ++i) {
         string filename = "Data_site_" + to_string(i) + ".csv";
         sites.emplace_back(filename, i);
     }
 
-    // Calculate times for each site
+     // LOCAL: Calculate times for each site
     for (int i = 1; i <= nbOfSites; ++i) {
         string filename = "Data_site_" + to_string(i) + ".csv";
         sites[i-1].calculateTimes(filename, i);
     }
 
-    // Read and combine times from all sites
-    vector<long double> combined_times;
+    // GLOBAL: Read and combine times from all sites
+    vector<MatrixXd> combined_times;
     for (int k = 1; k <= nbOfSites; ++k) {
         string filename = "Times_" + to_string(k) + "_output.csv";
-        vector<long double> times = readTimesFromFile(filename);
-        combined_times.insert(combined_times.end(), times.begin(), times.end());
+        MatrixXd times = readDataFromCSV(filename);
+        combined_times.push_back(times);
     }
 
-    // Remove duplicates and sort the times
-    set<long double> unique_times(combined_times.begin(), combined_times.end());
-    vector<long double> sorted_times(unique_times.begin(), unique_times.end());
+    int total_elements = 0;
+    for (const auto& matrix : combined_times) {
+        total_elements += matrix.size();
+    }
+
+    MatrixXd ordered_times(total_elements, 1);
+    int current_index = 0;
+    for (const auto& matrix : combined_times) {
+        ordered_times.block(current_index, 0, matrix.size(), 1) = matrix;
+        current_index += matrix.size();
+    }
+
+    std::sort(ordered_times.col(0).data(), ordered_times.col(0).data() + ordered_times.col(0).size());
 
     // Write the sorted times to a new CSV file
-    writeVectorToFile(sorted_times, "Global_times_output.csv");
+    writeResultsToCSV("Global_times_output.csv", ordered_times);
 
-    // Calculate params for each site
+    // LOCAL: Calculate params for each site
     for (int i = 1; i <= nbOfSites; ++i) {
         string filename = "Data_site_" + to_string(i) + ".csv";
         sites[i-1].calculateParams(filename, i, nbBetas);
     }
 
-    // Calculate parameters (sumZr, normDi)
+    // GLOBAL: Calculate parameters (sumZr, normDi)
     MatrixXd sumZrGlobal = MatrixXd::Zero(0, 0);
     MatrixXd normDikGlobal = MatrixXd::Zero(0, 1);
 
@@ -197,8 +195,10 @@ int main() {
         for (int j = 0; j < Dik_data.rows(); ++j) {
             normDikGlobal(j) += (Dik_data.row(j).array() != 0).count();
         }
+
         string sumZrh_filename = "sumZrh" + to_string(i) + ".csv";
         MatrixXd temp = readDataFromCSV(sumZrh_filename);
+
         if (sumZrGlobal.rows() == 0) {
             sumZrGlobal = MatrixXd::Zero(temp.rows(), temp.cols());
         }
@@ -208,23 +208,22 @@ int main() {
     writeResultsToCSV("normDikGlobal.csv", normDikGlobal);
     writeResultsToCSV("sumZrGlobal.csv", sumZrGlobal);
 
-    // Check if Beta_1_output.csv exists; if not, create and write zeros
+    // Check if Beta_1_output.csv exists; if not, initialise first beta
     if (!ifstream("Beta_1_output.csv")) {
         MatrixXd beta = MatrixXd::Zero(nbBetas, 1);
         writeResultsToCSV("Beta_1_output.csv", beta);
     }
 
-    // Main computation loop would go here
+    // Main computation loop
     for (int it = 1; it <= maxIt; ++it){
 
-        // Calculate data for beta estimation for each site
+        // LOCAL: Calculate aggregates for beta estimation
         for (int i = 1; i <= nbOfSites; ++i) {
             string filename = "Data_site_" + to_string(i) + ".csv";
-            cout << i << endl;
             sites[i-1].calculateBetas(filename, i, it, nbBetas);
         }
 
-        // Use local estimates to calculate new betas
+        // GLOBAL: Use local data to calculate new betas
         string fileName = "sumExp1_output_" + to_string(it) + ".csv";
         ifstream file(fileName);
         if (file.good()) {
@@ -232,12 +231,10 @@ int main() {
             MatrixXd beta = readDataFromCSV(betaFileName);
 
             // Initialize matrices and arrays
-            string Exp_filename = "sumExp1_output_1.csv";
-            MatrixXd Exp_data = readDataFromCSV(Exp_filename);
+            MatrixXd Exp_data = readDataFromCSV("sumExp1_output_1.csv");
             MatrixXd sumExpGlobal = MatrixXd::Zero(Exp_data.rows(), 1);
 
-            string ExpZq_filename = "sumZqExp1_output_1.csv";
-            MatrixXd ExpZq_data = readDataFromCSV(ExpZq_filename);
+            MatrixXd ExpZq_data = readDataFromCSV("sumZqExp1_output_1.csv");
             MatrixXd sumZqExpGlobal = MatrixXd::Zero(ExpZq_data.rows(), nbBetas);
 
             //nbBetas, nbBetas, ncol(sumZqZrExp)
@@ -247,32 +244,27 @@ int main() {
 
             // Read files and sum values
             for (int i = 1; i <= nbOfSites; ++i) {
-                Exp_filename = "sumExp" + to_string(i) + "_output_" + to_string(it) + ".csv";
+                string Exp_filename = "sumExp" + to_string(i) + "_output_" + to_string(it) + ".csv";
                 Exp_data = readDataFromCSV(Exp_filename);
                 sumExpGlobal += Exp_data;
 
-                ExpZq_filename = "sumZqExp" + to_string(i) + "_output_" + to_string(it) + ".csv";
+                string ExpZq_filename = "sumZqExp" + to_string(i) + "_output_" + to_string(it) + ".csv";
                 ExpZq_data = readDataFromCSV(ExpZq_filename);
                 sumZqExpGlobal += ExpZq_data;
 
                 string ExpZqZr_filename = "sumZqZrExp" + to_string(i) + "_output_" + to_string(it) + ".csv";
                 MatrixXd ExpZqZr_data = readDataFromCSV(ExpZqZr_filename);
+                vector<vector<double>> combined_matrix_data = readCSVVector("sumZqZrExp" + to_string(i) + "_output_" + to_string(it) + ".csv"); 
 
-                vector<vector<double>> combined_matrix_data = readCSV("sumZqZrExp" + to_string(i) + "_output_" + to_string(it) + ".csv"); 
-
-                // Restore data from combined_matrix_data to sumZqZrExp
                 for (size_t i = 0; i < Rik_data.size(); ++i) {
                     for (int j = 0; j < nbBetas * nbBetas; ++j) {
                         sumZqZrExp[i](j / nbBetas, j % nbBetas) = combined_matrix_data[j][i];
                     }
-                }
-
-                for (size_t i = 0; i < sumZqZrExpGlobal.size(); ++i) {
                     sumZqZrExpGlobal[i] += sumZqZrExp[i];
                 }
-
             }
 
+            // Calculate parameters
             MatrixXd sumZrGlobal_int = sumZrGlobal.colwise().sum();
 
             // Calculate first derivative
@@ -317,6 +309,5 @@ int main() {
         }
     }
     
-
     return 0;
 }
