@@ -1,7 +1,7 @@
 /*
     Distributed Cox Model in C++
     License: https://creativecommons.org/licenses/by-nc-sa/4.0/
-    Copyright: GRIIS / Université de Sherbrooke
+    Copyright: GRIIS / UniversitÃ© de Sherbrooke
 
     TODO: 
     - Clean Node.cpp (many different read and write functions, could be merged)

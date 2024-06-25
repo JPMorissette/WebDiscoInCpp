@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 #include <limits>
-#include "C:/Libraries/Eigen/eigen-3.4.0/Eigen/Dense"
+#include <Eigen/Dense>
 #include <cmath>
 #include <algorithm>
 
