@@ -105,7 +105,7 @@ MatrixXd readDataFromCSV(const string &filename) {
 // Write data in CSV
 void writeResultsToCSV(const string& filename, const MatrixXd& matrix) {
     ofstream outputFile(filename);
-    outputFile << fixed << setprecision(15);
+    // outputFile << fixed << setprecision(15);
     if (outputFile.is_open()) {
         for (int i = 0; i < matrix.rows(); ++i) {
             for (int j = 0; j < matrix.cols(); ++j) {
@@ -135,8 +135,8 @@ double forceZero(double value, double threshold = 1e-10) {
 
 int main() {
     const int nbOfSites = 3;
-    const int nbBetas = 3;
-    const int maxIt = 2;
+    const int nbBetas = 10;
+    const int maxIt = 5;
 
     // Create sites (needed for data storage)
     vector<Node> sites;
