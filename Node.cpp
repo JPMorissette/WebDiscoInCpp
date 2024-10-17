@@ -1,3 +1,4 @@
+
 #include "Node.h"
 #include <iostream>
 #include <fstream>
@@ -5,7 +6,7 @@
 #include <vector>
 #include <string>
 #include <limits>
-#include <Eigen/Dense>
+#include "Eigen/Dense"
 #include <cmath>
 #include <algorithm>
 
@@ -100,7 +101,7 @@ void Node::calculateParams(const string &filename, int i, int nbBetas)
 
 void Node::calculateBetas(const string &filename, int k, int it, int nbBetas)
 {
-    auto node_data = readCSV("Data_site_" + to_string(k) + ".csv");
+    auto node_data = readCSV("Data_node_" + to_string(k) + ".csv");
     auto beta_data = readBetasCsv("Beta_" + to_string(it) + "_output.csv");
     auto Rik_data = readCSVNoHeader("Rik" + to_string(k) + ".csv");
 

@@ -135,19 +135,19 @@ double forceZero(double value, double threshold = 1e-10) {
 
 int main() {
     const int nbOfSites = 3;
-    const int nbBetas = 10;
-    const int maxIt = 5;
+    const int nbBetas = 3;
+    const int maxIt = 50;
 
     // Create sites (needed for data storage)
     vector<Node> sites;
     for (int i = 1; i <= nbOfSites; ++i) {
-        string filename = "Data_site_" + to_string(i) + ".csv";
+        string filename = "Data_node_" + to_string(i) + ".csv";
         sites.emplace_back(filename, i);
     }
 
      // LOCAL: Calculate times for each site
     for (int i = 1; i <= nbOfSites; ++i) {
-        string filename = "Data_site_" + to_string(i) + ".csv";
+        string filename = "Data_node_" + to_string(i) + ".csv";
         sites[i-1].calculateTimes(filename, i);
     }
 
@@ -173,12 +173,19 @@ int main() {
 
     std::sort(ordered_times.col(0).data(), ordered_times.col(0).data() + ordered_times.col(0).size());
 
+    // (!) On devrait éliminer les doublons ici?
+    std::vector<double> v(ordered_times.col(0).data(), ordered_times.col(0).data() + ordered_times.col(0).size());
+    v.erase(unique(v.begin(), v.end()), v.end());
+    int rows = v.size();
+    int cols = 1;
+    Eigen::Map<Eigen::MatrixXd> unique_times(v.data(), rows, cols);
+
     // Write the sorted times to a new CSV file
-    writeResultsToCSV("Global_times_output.csv", ordered_times);
+    writeResultsToCSV("Global_times_output.csv", unique_times);
 
     // LOCAL: Calculate params for each site
     for (int i = 1; i <= nbOfSites; ++i) {
-        string filename = "Data_site_" + to_string(i) + ".csv";
+        string filename = "Data_node_" + to_string(i) + ".csv";
         sites[i-1].calculateParams(filename, i, nbBetas);
     }
 
@@ -208,7 +215,7 @@ int main() {
     writeResultsToCSV("normDikGlobal.csv", normDikGlobal);
     writeResultsToCSV("sumZrGlobal.csv", sumZrGlobal);
 
-    // Check if Beta_1_output.csv exists; if not, initialise first beta
+    // Check if Beta_1_output.csv exists; if not, initialise first beta (!)
     if (!ifstream("Beta_1_output.csv")) {
         MatrixXd beta = MatrixXd::Zero(nbBetas, 1);
         writeResultsToCSV("Beta_1_output.csv", beta);
@@ -219,7 +226,7 @@ int main() {
 
         // LOCAL: Calculate aggregates for beta estimation
         for (int i = 1; i <= nbOfSites; ++i) {
-            string filename = "Data_site_" + to_string(i) + ".csv";
+            string filename = "Data_node_" + to_string(i) + ".csv";
             sites[i-1].calculateBetas(filename, i, it, nbBetas);
         }
 
